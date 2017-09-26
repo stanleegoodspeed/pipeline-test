@@ -2,15 +2,15 @@ version: '2'
 services:
   wordpress:
     image: wordpress
-    cpu_shares: 100
-    mem_limit: 524288000
+    cpu_shares: 0
+    mem_limit: 134217728
     ports:
       - "80:80"
     links:
       - mysql
   mysql:
     image: mysql
-    cpu_shares: 100
-    mem_limit: 524288000
+    cpu_shares: 0
+    mem_limit: 134217728
     environment:
       MYSQL_ROOT_PASSWORD: password
