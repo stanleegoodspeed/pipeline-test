@@ -1,0 +1,23 @@
+# Build matrix
+language: node_js
+
+branches:
+  - master
+
+script:
+  
+  - CHANGES=$(git --no-pager diff --name-only FETCH_HEAD $(git merge-base FETCH_HEAD master))  
+  - $(grep '^microservice-1' <<< "$CHANGES") 
+
+  # TODO - detect changes and build specific repo
+  # build + tag
+  - docker build -t image -t $REPO:$TRAVIS_BUILD_NUMBER -f Dockerfile .
+      
+# Cache node modules between runs
+cache:
+  directories:
+    - node_modules
+  
+
+
+

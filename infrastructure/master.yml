@@ -1,0 +1,91 @@
+Description: >
+
+    This template deploys a VPC, with a pair of public and private subnets spread 
+    across two Availabilty Zones. It deploys an Internet Gateway, with a default 
+    route on the public subnets. It deploys a pair of NAT Gateways (one in each AZ), 
+    and default routes for them in the private subnets.
+
+    It then deploys a highly available ECS cluster using an AutoScaling Group, with 
+    ECS hosts distributed across multiple Availability Zones. 
+
+    Finally, it deploys a pair of example ECS services from containers published in 
+    Amazon EC2 Container Registry (Amazon ECR).
+
+Resources:
+
+    VPC:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: https://s3.amazonaws.com/sciam-dev-infrastructure-templates/infrastructure/vpc.yaml
+            Parameters:
+                EnvironmentName:    !Ref AWS::StackName
+                VpcCIDR:            10.170.0.0/16
+                PublicSubnet1CIDR:  10.170.8.0/21
+                PublicSubnet2CIDR:  10.170.16.0/21
+                PrivateSubnet1CIDR: 10.170.24.0/21
+                PrivateSubnet2CIDR: 10.170.32.0/21
+
+    SecurityGroups:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: https://s3.amazonaws.com/sciam-dev-infrastructure-templates/infrastructure/security-groups.yaml
+            Parameters: 
+                EnvironmentName: !Ref AWS::StackName
+                VPC: !GetAtt VPC.Outputs.VPC
+
+    ALB:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: https://s3.amazonaws.com/sciam-dev-infrastructure-templates/infrastructure/load-balancers.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                VPC: !GetAtt VPC.Outputs.VPC
+                Subnets: !GetAtt VPC.Outputs.PublicSubnets
+                SecurityGroup: !GetAtt SecurityGroups.Outputs.LoadBalancerSecurityGroup
+
+    ECS:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: https://s3.amazonaws.com/sciam-dev-infrastructure-templates/infrastructure/ecs-cluster.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                InstanceType: t2.micro
+                ClusterSize: 4
+                VPC: !GetAtt VPC.Outputs.VPC
+                SecurityGroup: !GetAtt SecurityGroups.Outputs.ECSHostSecurityGroup
+                Subnets: !GetAtt VPC.Outputs.PrivateSubnets
+
+    # MicroService1:
+    #     Type: AWS::CloudFormation::Stack
+    #     Properties:
+    #         TemplateURL: https://s3.amazonaws.com/sciam-dev-infrastructure-templates/services/microservice-1/service.yml
+    #         Parameters:
+    #             VPC: !GetAtt VPC.Outputs.VPC
+    #             Cluster: !GetAtt ECS.Outputs.Cluster
+    #             DesiredCount: 4
+    #             Listener: !GetAtt ALB.Outputs.Listener 
+    #             Path: /microservice-1
+
+    # MicroService2:
+    #     Type: AWS::CloudFormation::Stack
+    #     Properties:
+    #         TemplateURL: https://s3.amazonaws.com/sciam-dev-infrastructure-templates/services/microservice-2/service.yml
+    #         Parameters:
+    #             VPC: !GetAtt VPC.Outputs.VPC
+    #             Cluster: !GetAtt ECS.Outputs.Cluster
+    #             DesiredCount: 4
+    #             Listener: !GetAtt ALB.Outputs.Listener 
+    #             Path: /microservice-2
+
+
+# Outputs:
+
+#     Microservice1URL: 
+#         Description: The URL endpoint for the microservice 1
+#         Value: !Join [ "/", [ !GetAtt ALB.Outputs.LoadBalancerUrl, "microservice-1" ]]
+    
+#     Microservice2URL: 
+#         Description: The URL endpoint for the microservice 2
+#         Value: !Join [ "/", [ !GetAtt ALB.Outputs.LoadBalancerUrl, "microservice-2" ]]
+
+    
